@@ -7,26 +7,30 @@
 
 #!/usr/bin/python
 from scipy.io import wavfile as wavfile
+from scipy import signal
 import sys #to get command line arguments
 import numpy
 import matplotlib.pyplot as plt
 
 UPPER_BOUND = 40
 LOWER_BOUND = 10
-
-def findPeaks ( inArray ):
+WINDOW_WIDTH = 1 #in seconds
+	
+def findPeaks ( inArray, mode="both" ): 
+	#max for max peaks, min for min peaks, both for both
 	toRet = []
 	ascending = False
 	if (inArray[1] > inArray[0]):
 		ascending = True
 	for i in range(len(inArray) - 1):
 		if ( ascending and inArray[i+1] < inArray[i] ):
-			toRet.append(i)
+			if not (mode == "min"):
+				toRet.append(i)
 			ascending = False
-		if ( not ascending and inArray[i+1] > inArray[i] ):
-			toRet.append(i)
+		if ( not ascending and inArray[i+1] > inArray[i]):
+			if not (mode == "max"):
+				toRet.append(i)
 			ascending = True
-#:	print toRet
 	return numpy.asarray(toRet)
 
 def windowRMS(a, window_size):
@@ -60,6 +64,8 @@ def main():
 
 	arrListX = numpy.split(xaxis, [ 60*2*samplingRate, 60*10*samplingRate, 60*12*samplingRate ] )
 	
+	#testing convolution stuff, temporary removal
+	'''	
 	plt.plot( xaxis, values )
 	plt.xlabel("Time (s)")
 	#plt.show()
@@ -94,13 +100,51 @@ def main():
 		
 #define hard limit as half of peak
 
-	valThresh = numpy.max(values) / 4
-#	valThresh = numpy.mean( numpy.abs(values) )
-#	valThresh = numpy.mean( windowRMS(values,samplingRate/2) )
+	#valThresh = numpy.max(values) / 4
+	#valThresh = numpy.mean( numpy.abs(values) )
+	#valThresh = numpy.mean( windowRMS(values,samplingRate/2) )
+	#valThresh = 0.4 #arbitrary
 	
-#if more than half a second between bounce, then transition
+	
+	'''
+	#end of conv test
+
 	toPlotX = []
 	toPlotY = []
+
+	#convWin = numpy.ones( WINDOW_WIDTH * samplingRate )
+	convWin = signal.triang( WINDOW_WIDTH * samplingRate )
+	#starProduct0 = numpy.convolve( abs(values), convWin, 'same' )
+	starProduct1 = numpy.convolve( abs(arrListY[1]), convWin, 'same' )
+	starProduct1 = starProduct1 / max(starProduct1)
+	starProduct2 = numpy.convolve( abs(arrListY[3]), convWin, 'same' )
+	starProduct2 = starProduct2 / max(starProduct2)
+
+	spThresh = 0.1
+	#spThresh = numpy.mean( starProduct0 )
+
+	silenceList = []
+	holder = starProduct1 < spThresh
+	silenceList.append(holder)
+	holder = starProduct2 < spThresh
+	silenceList.append(holder)		
+
+	for i in range (2):
+		silence = True
+		period = i*2+1
+		silList = []
+		truthList = silenceList[i]
+		for j in range(truthList.size):
+			if (silence and not truthList[j]): #currently is silent
+				silence = False
+				silList.append(j)
+			elif (not silence and truthList[j]):
+				silence = True
+				silList.append(j)
+		toPlotX.append( numpy.split(arrListX[period],silList) )
+		toPlotY.append( numpy.split(arrListY[period],silList) )
+	
+	'''
 	for i in range (2):
 		silence = True
 		period = i*2+1
@@ -114,21 +158,20 @@ def main():
 			if (len(yesList)): 
 				if (yesList[0] < j - samplingRate/2):
 					yesList.pop(0)
-			if ( len(yesList) ):
-				if (silence): #currently is silent
-					if (len(yesList) >= UPPER_BOUND):
-						silence = False
-						silList.append(yesList[0])
-				else:
-					if (len(yesList) < LOWER_BOUND):
-						silence = True
-						silList.append(j)
+			if (silence): #currently is silent
+				if (len(yesList) >= UPPER_BOUND):
+					silence = False
+					silList.append(yesList[0])
+			else:
+				if (len(yesList) < LOWER_BOUND):
+					silence = True
+					silList.append(j)
 		toPlotX.append( numpy.split(arrListX[period],silList) )
 		toPlotY.append( numpy.split(toCheck,silList) )
-
+	'''
 	plt.clf()		
 	plt.hold(True)
-	plt.plot( arrListX[0], arrListY[0], 'g', arrListX[2], arrListY[2], 'g') #for the ready parts
+	plt.plot( arrListX[0], arrListY[0], 'g', arrListX[2], arrListY[2], 'g') #for the reading parts
 	for i in range(len(toPlotX)):
 		silence = True 
 		xList = toPlotX[i]
@@ -141,7 +184,16 @@ def main():
 				plt.plot( xList[j], yList[j], 'b')
 				silence = True
 	plt.savefig( "silences.png" )
+
 #colours: green for read, blue for speak, red for pause in answering
+
+
+	plt.hold(False)
+	plt.plot(arrListX[1], starProduct1)
+	plt.savefig( "Convolution 1.png" )
+	plt.plot(arrListX[3], starProduct2)
+	plt.savefig( "Convolution 2.png" )
+
 
 if __name__ == "__main__":
 	main()
