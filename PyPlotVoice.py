@@ -12,9 +12,8 @@ import sys #to get command line arguments
 import numpy
 import matplotlib.pyplot as plt
 
-UPPER_BOUND = 40
-LOWER_BOUND = 10
 WINDOW_WIDTH = 1 #in seconds
+SIL_THRESH = 0.5 #in seconds
 	
 def findPeaks ( inArray, mode="both" ): 
 	#max for max peaks, min for min peaks, both for both
@@ -54,7 +53,7 @@ def main():
 
 	#getting this far means that the file is good, and has been opened
 	
-	print "IO DONE"
+	#print "IO DONE"
 	
 	#first, we split the data into its four sections
 
@@ -141,9 +140,20 @@ def main():
 			elif (not silence and truthList[j]):
 				silence = True
 				silList.append(j)
+		#print silList
+		#now we remove things in twos if they're too close
+		threshold = SIL_THRESH * samplingRate
+		j = 0
+		while ( j < len(silList)-1 ):
+			if ( silList[j+1] - silList[j] < threshold ):
+				silList.pop(j)
+				silList.pop(j)
+			else:
+				j = j + 1
+
 		toPlotX.append( numpy.split(arrListX[period],silList) )
 		toPlotY.append( numpy.split(arrListY[period],silList) )
-	
+		print "reading "+str(i+1)+" has "+str(len(silList)/2)+" pauses"
 	'''
 	for i in range (2):
 		silence = True
@@ -187,12 +197,26 @@ def main():
 
 #colours: green for read, blue for speak, red for pause in answering
 
-
-	plt.hold(False)
-	plt.plot(arrListX[1], starProduct1)
-	plt.savefig( "Convolution 1.png" )
-	plt.plot(arrListX[3], starProduct2)
-	plt.savefig( "Convolution 2.png" )
+	for i in range(len(toPlotX)):
+		plt.clf()
+		silence = True 
+		xList = toPlotX[i]
+		yList = toPlotY[i]
+		for j in range(len(xList)):
+			if (silence):
+				plt.plot( xList[j], yList[j], 'r')
+				silence = False
+			else:
+				plt.plot( xList[j], yList[j], 'b')
+				silence = True
+		plt.savefig( "silences"+str(i+1)+".png" )
+	
+	#for debugging purposes
+	#plt.hold(False)
+	#plt.plot(arrListX[1], starProduct1)
+	#plt.savefig( "Convolution 1.png" )
+	#plt.plot(arrListX[3], starProduct2)
+	#plt.savefig( "Convolution 2.png" )
 
 
 if __name__ == "__main__":
