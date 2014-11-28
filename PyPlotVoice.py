@@ -128,28 +128,21 @@ def main():
 	holder = starProduct2 < spThresh
 	silenceList.append(holder)		
 
+	threshold = SIL_THRESH * samplingRate
 	for i in range (2):
 		silence = True
 		period = i*2+1
 		silList = []
 		truthList = silenceList[i]
 		for j in range(truthList.size):
-			if (silence and not truthList[j]): #currently is silent
-				silence = False
-				silList.append(j)
-			elif (not silence and truthList[j]):
-				silence = True
-				silList.append(j)
-		#print silList
-		#now we remove things in twos if they're too close
-		threshold = SIL_THRESH * samplingRate
-		j = 0
-		while ( j < len(silList)-1 ):
-			if ( silList[j+1] - silList[j] < threshold ):
-				silList.pop(j)
-				silList.pop(j)
-			else:
-				j = j + 1
+			risingEdge = silence and not truthList[j]
+			fallingEdge = not silence and truthList[j]
+			if (risingEdge or fallingEdge):
+				silence = not silence
+				if ( j - silList[-1] < threshold ):
+					silList.pop()
+				else:
+					silList.append(j)
 
 		toPlotX.append( numpy.split(arrListX[period],silList) )
 		toPlotY.append( numpy.split(arrListY[period],silList) )
