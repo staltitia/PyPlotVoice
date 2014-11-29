@@ -14,28 +14,7 @@ import matplotlib.pyplot as plt
 
 WINDOW_WIDTH = 1 #in seconds
 SIL_THRESH = 0.5 #in seconds
-	
-def findPeaks ( inArray, mode="both" ): 
-	#max for max peaks, min for min peaks, both for both
-	toRet = []
-	ascending = False
-	if (inArray[1] > inArray[0]):
-		ascending = True
-	for i in range(len(inArray) - 1):
-		if ( ascending and inArray[i+1] < inArray[i] ):
-			if not (mode == "min"):
-				toRet.append(i)
-			ascending = False
-		if ( not ascending and inArray[i+1] > inArray[i]):
-			if not (mode == "max"):
-				toRet.append(i)
-			ascending = True
-	return numpy.asarray(toRet)
-
-def windowRMS(a, window_size):
-  a2 = numpy.power(a,2)
-  window = numpy.ones(window_size)/float(window_size)
-  return numpy.sqrt(numpy.convolve(a2, window, 'valid'))
+NORM_CONV_THRESH = 0.1 #normalised
 
 def main():
 	filename = ''
@@ -53,8 +32,6 @@ def main():
 
 	#getting this far means that the file is good, and has been opened
 	
-	#print "IO DONE"
-	
 	#first, we split the data into its four sections
 
 	arrListY = numpy.split(values, [ 60*2*samplingRate, 60*10*samplingRate, 60*12*samplingRate ] )
@@ -63,70 +40,19 @@ def main():
 
 	arrListX = numpy.split(xaxis, [ 60*2*samplingRate, 60*10*samplingRate, 60*12*samplingRate ] )
 	
-	#testing convolution stuff, temporary removal
-	'''	
-	plt.plot( xaxis, values )
-	plt.xlabel("Time (s)")
-	#plt.show()
-	
-	if ( len(sys.argv) >= 3 ):
-		plt.savefig(sys.argv[2])
-	else:
-		plt.savefig("out.png")
-
-	print "OUT DONE"
-	#plt.clf()
-	#yaxisrms = windowRMS(values,samplingRate/2)  
-	#xaxisrms = numpy.arange( 0, float(len(yaxisrms)) / samplingRate, 1.0 / samplingRate )
-	#plt.plot( xaxisrms, yaxisrms )
-	#plt.savefig("rms.png")
-	colourArray = [ 'b', 'y', 'm', 'w', 'c', 'g', 'r', 'k' ] 
-	plt.clf()
-	for i in range(len(arrListY)):
-		plt.plot( arrListX[i], arrListY[i], colourArray[-i] )
-	plt.savefig("split.png")
-	
-	plt.hold(False)
-	for i in range(len(arrListY)):
-		xaxis = numpy.arange( 0, float(len(arrListY[i])) / samplingRate, 1.0 / samplingRate )
-		plt.plot( xaxis, arrListY[i] )
-		if ( i % 2 ):
-			plt.savefig("answer_"+str((i+1)/2)+".png")
-		else:
-			plt.savefig("reading_"+str((i/2)+1)+".png")
-
-	print "SPLIT SAVE DONE"
-		
-#define hard limit as half of peak
-
-	#valThresh = numpy.max(values) / 4
-	#valThresh = numpy.mean( numpy.abs(values) )
-	#valThresh = numpy.mean( windowRMS(values,samplingRate/2) )
-	#valThresh = 0.4 #arbitrary
-	
-	
-	'''
-	#end of conv test
-
 	toPlotX = []
 	toPlotY = []
 
 	#convWin = numpy.ones( WINDOW_WIDTH * samplingRate )
 	convWin = signal.triang( WINDOW_WIDTH * samplingRate )
-	#starProduct0 = numpy.convolve( abs(values), convWin, 'same' )
 	starProduct1 = numpy.convolve( abs(arrListY[1]), convWin, 'same' )
 	starProduct1 = starProduct1 / max(starProduct1)
 	starProduct2 = numpy.convolve( abs(arrListY[3]), convWin, 'same' )
 	starProduct2 = starProduct2 / max(starProduct2)
 
-	spThresh = 0.1
-	#spThresh = numpy.mean( starProduct0 )
-
 	silenceList = []
-	holder = starProduct1 < spThresh
-	silenceList.append(holder)
-	holder = starProduct2 < spThresh
-	silenceList.append(holder)		
+	silenceList.append(starProduct1 < NORM_CONV_THRESH)
+	silenceList.append(starProduct2 < NORM_CONV_THRESH)		
 
 	threshold = SIL_THRESH * samplingRate
 	for i in range (2):
@@ -147,34 +73,12 @@ def main():
 		toPlotX.append( numpy.split(arrListX[period],silList) )
 		toPlotY.append( numpy.split(arrListY[period],silList) )
 		print "reading "+str(i+1)+" has "+str(len(silList)/2)+" pauses"
-	'''
-	for i in range (2):
-		silence = True
-		period = i*2+1
-		toCheck = arrListY[period]
-		extremaList = findPeaks(toCheck)
-		yesList = []
-		silList = []
-		for j in extremaList:
-			if (abs(toCheck[j]) >= valThresh):
-				yesList.append(j)
-			if (len(yesList)): 
-				if (yesList[0] < j - samplingRate/2):
-					yesList.pop(0)
-			if (silence): #currently is silent
-				if (len(yesList) >= UPPER_BOUND):
-					silence = False
-					silList.append(yesList[0])
-			else:
-				if (len(yesList) < LOWER_BOUND):
-					silence = True
-					silList.append(j)
-		toPlotX.append( numpy.split(arrListX[period],silList) )
-		toPlotY.append( numpy.split(toCheck,silList) )
-	'''
+	
 	plt.clf()		
 	plt.hold(True)
-	plt.plot( arrListX[0], arrListY[0], 'g', arrListX[2], arrListY[2], 'g') #for the reading parts
+	#for the reading parts
+	#colours: green for read, blue for speak, red for pause in answering
+	plt.plot( arrListX[0], arrListY[0], 'g', arrListX[2], arrListY[2], 'g')
 	for i in range(len(toPlotX)):
 		silence = True 
 		xList = toPlotX[i]
@@ -188,8 +92,7 @@ def main():
 				silence = True
 	plt.savefig( "silences.png" )
 
-#colours: green for read, blue for speak, red for pause in answering
-
+	#individual answer plots
 	for i in range(len(toPlotX)):
 		plt.clf()
 		silence = True 
