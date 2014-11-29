@@ -11,6 +11,7 @@ from scipy import signal
 import sys #to get command line arguments
 import numpy
 import matplotlib.pyplot as plt
+import numm
 
 WINDOW_WIDTH = 1 #in seconds
 SIL_THRESH = 0.3 #in seconds
@@ -74,6 +75,34 @@ def SilenceCounter( inXArray, inXSilentList, samplingRate ):
 def splitter( inX, inY, samplingRate, function ):
 	return function( inX, inY, samplingRate )
 
+def readAudio( filename ):
+	#returns list, [ samplingRate, values ]
+	import os
+	name, ext = os.path.splitext(filename)
+
+	if ext == '.wav':	#reading a .wav
+		return  wavfile.read(filename)
+	else:
+		#using numm to read a .webm
+		values = numm.sound2np(filename)
+		#average out stereo input
+		#values = numpy.mean( values, axis=1 )
+		#we use just the left channel
+		values = numpy.split( values, [1], axis=1 )[0]
+		#numm defaults to 44.1 kHz sampling rate
+		#samplingRate = 44100
+
+		#return [ samplingRate, values ]
+
+		#dev machine is REALLY BAD, concessions made for test purposes
+		toPad = numpy.zeros( values.size % 5 )
+		if toPad.size > 0:
+			values = numpy.concatenate( values, toPad )
+		reshaped = values.reshape( ( values.size / 5, 5) )
+		values = numpy.mean( reshaped, axis=1 )
+		samplingRate = 44100 / 5
+		return [ samplingRate, values ]
+
 def main():
 	filename = ''
 
@@ -83,11 +112,13 @@ def main():
 		print("Please include a file as a command line argument")
 		return
 	try:
-		 [ samplingRate, values ] =  wavfile.read(filename)
+		 [ samplingRate, values ] =  readAudio(filename)
 	except IOError:
 		print( filename + " does not exist. Please try again.")
 		return
 
+	#print "IO COMPLETE"
+	
 	#getting this far means that the file is good, and has been opened
 	
 	#first, we split the data into its four sections
