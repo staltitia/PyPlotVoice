@@ -17,6 +17,20 @@ WINDOW_WIDTH = 1 #in seconds
 SIL_THRESH = 0.3 #in seconds
 NORM_CONV_THRESH = 0.1 #normalised
 
+def fftFilter( inArray, samplingRate, inFreq, filterType = "low" ):
+	ftfreq = numpy.fft.fftfreq( inArray.size, d = 1.0/samplingRate )
+	table = []
+	if filterType == "high":
+		table = abs( ftfreq ) < inFreq
+	elif filterType == "low":
+		table = abs( ftfreq ) > inFreq
+	else:
+		print "fftFilter: Invalid type. Please use either \'high\' or \'low\'"
+		return numpy.array()
+	ft = numpy.fft.fft(inArray)
+	ft[table] = 0
+	return numpy.fft.ifft(ft)
+
 def ConvSilence( inXArray, inYArray, samplingRate ):		
 
 	if inXArray.size != inYArray.size:
