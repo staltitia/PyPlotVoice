@@ -18,7 +18,7 @@ def findPeaks ( inArray, mode="both" ):
 				toRet.append(i)
 			ascending = True
 #:	print toRet
-	return numpy.asarray(toRet)
+	return numpy.array(toRet)
 
 def findPeakVals ( inArray, mode="both" ): 
 	#max for max peaks, min for min peaks, both for both

@@ -2,3 +2,7 @@
 *.webm
 *.wav
 *.py.swp
+*.pyc
+*.swp
+*.sh
+*.txt
