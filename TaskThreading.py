@@ -2,8 +2,11 @@ import threading
 import numpy
 from FindPeaks import *
 
+import matplotlib.pyplot as plt
+
 writeLock = threading.Lock()
 outArr = numpy.array([])
+#drawLock = threading.Lock()
 
 def fundFreqBlocksThreaded ( inArray, samplingRate, win, toConv, concurrent=10 ):
 	#inArray is a numpy array
@@ -82,7 +85,14 @@ class AMDFThread( threading.Thread ):
 		f0 = numpy.argmin( trunc )
 
 		toWrite = ( f0+truncIndHead )
-
+		'''
+		global drawLock
+		drawLock.acquire()
+		plt.clf()
+		plt.plot(curve)
+		plt.savefig("AMDFOUT%d.png"%self.outInd)
+		drawLock.release()
+		'''
 		global writeLock, outArr
 		writeLock.acquire()
 		outArr[self.outInd] = toWrite

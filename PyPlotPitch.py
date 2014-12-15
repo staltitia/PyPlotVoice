@@ -148,7 +148,8 @@ def main():
 
 	arrListY = numpy.split(values, [ 60*2*samplingRate, 60*10*samplingRate, 60*12*samplingRate ] )
 	
-	xaxis = numpy.arange( 0, float(len(values)) / samplingRate, 1.0 / samplingRate )
+	#xaxis = numpy.arange( 0, float(len(values)) / samplingRate, 1.0 / samplingRate )
+	xaxis = numpy.arange(len(values), dtype = float) / samplingRate
 
 	arrListX = numpy.split(xaxis, [ 60*2*samplingRate, 60*10*samplingRate, 60*12*samplingRate ] )
 
@@ -158,27 +159,17 @@ def main():
 
 	#the next step is to determine the fundamental frequencies
 	ans1LPS = fftFilter( arrListY[1], samplingRate, 900, 'low' )
-	ans1Filtered = centerClip( ans1LPS, 30 )
+	ans1Filtered = centerClip( ans1LPS, 40 )
 	#ans1f0 = fundFreqBlocks(ans1Filtered, samplingRate, WIN_WIDTH, 'AMDF')
-	#ans1f0 = fundFreqBlocks( arrListY[1], samplingRate, WIN_WIDTH, 'AMDF' )	
+	
 	toConv = numpy.ones(SMOOTH_WIDTH * samplingRate)
 	from TaskThreading import fundFreqBlocksThreaded
 	ans1f0 = fundFreqBlocksThreaded( ans1Filtered, samplingRate, WIN_WIDTH, toConv, concurrent = 25 )
 	
-
 	f0X = numpy.arange(ans1f0.size) * WIN_WIDTH
 	toSave = ans1f0 > 0
 	toPlotX = f0X[toSave]
 	toPlotY = ans1f0[toSave]
-	#from AMDF import AMDF
-
-	#ans1 = AMDF( ans1Filtered, samplingRate, WIN_WIDTH )
-	#toShow = ans1.process()
-
-	#for i in range( len(toShow) ):	
-	#	plt.clf()
-	#	plt.plot( toShow[i] )
-	#	plt.savefig( "ans1AMDF%03d.png" % i )
 
 	plt.clf()
 	plt.plot( toPlotX, toPlotY, '.' )
